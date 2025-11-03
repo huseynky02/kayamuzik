@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>MHÖAL - 10 Kasım</title>
+    <style>
+        :root{
+            --bg-1: #0f1724;
+            --bg-2: #0b1220;
+            --card: rgba(255,255,255,0.03);
+            --accent-1: #7c5cff;
+            --accent-2: #2bd4f7;
+            --muted: rgba(255,255,255,0.55);
+            --glass: rgba(255,255,255,0.03);
+        }
+
+        /* Splash / loading full-screen */
+        #splash{
+            position:fixed;
+            inset:0;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            background:#000;
+            color:#fff;
+            z-index:9999;
+            -webkit-font-smoothing:antialiased;
+            transition: opacity .45s ease;
+        }
+        #splash.hidden{ opacity:0; pointer-events:none; }
+        .splash-inner{ text-align:center; transform:translateY(0); }
+        .splash-title{
+            font-family: Inter, "Segoe UI", Roboto, system-ui, -apple-system, "Helvetica Neue", Arial;
+            font-size:34px;
+            letter-spacing:2px;
+            font-weight:700;
+            color:#fff;
+            text-transform:uppercase;
+        }
+        .splash-sub{ margin-top:6px; color:#aaa; font-size:12px; }
+
+        /* Decorative background art (transparent image) */
+        .bg-art{
+            position:fixed;
+            inset:0;
+            pointer-events:none;
+            z-index:0;
+            background-image: url("https://img.piri.net/mnresize/900/-/resim/imagecrop/2020/07/07/03/00/resized_b8c29-07e0ecba3.jpg");
+            background-size: cover;
+            background-position: center center;
+            background-repeat: no-repeat;
+            opacity: 0.90; /* adjust overall visibility */
+            filter: blur(18px) saturate(120%);
+            transform: scale(1.02);
+            mix-blend-mode: screen;
+            will-change: opacity, transform;
+        }
+        /* subtle dark overlay so UI text stays readable */
+        .bg-art::before{
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(180deg, rgba(6,8,15,0.64), rgba(8,10,18,0.64));
+            pointer-events: none;
+        }
+
+        /* make main app appear above background art */
+        .app { position:relative; z-index:2; }
+        /* splash should still be top-most */
+        #splash { z-index:9999; }
+        /* reduce intensity on small screens */
+        @media (max-width:720px){
+            .bg-art{ opacity:0.18; filter: blur(24px) saturate(110%); }
+        }
+        @media (max-width:420px){
+            .bg-art{ opacity:0.14; filter: blur(28px) saturate(100%); }
+        }
+
+        *{box-sizing:border-box;margin:0;padding:0}
+        html,body{height:100%}
+        body{
+            font-family: Inter, "Segoe UI", Roboto, system-ui, -apple-system, "Helvetica Neue", Arial;
+            background: linear-gradient(135deg,var(--bg-1) 0%, var(--bg-2) 100%);
+            color: #e6eef8;
+            -webkit-font-smoothing:antialiased;
+            -moz-osx-font-smoothing:grayscale;
+            padding:20px;
+            display:flex;
+            justify-content:center;
+            align-items:flex-start;
+            gap:20px;
+            min-height:100vh;
+        }
+
+        .app {
+            width:100%;
+            max-width:900px;
+            margin: 24px auto;
+        }
+
+        header {
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:16px;
+            margin-bottom:18px;
+        }
+
+        header h1{
+            font-size:1.25rem;
+            color: #f5f8ff;
+            letter-spacing:0.2px;
+            /* center the title horizontally */
+            display: block;
+            width: 100%;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        /* Playlist card */
+        .playlist-wrap{
+            background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+            border: 1px solid rgba(255,255,255,0.04);
+            border-radius:16px;
+            padding:18px;
+            box-shadow: 0 8px 30px rgba(2,6,23,0.6);
+            max-height:72vh;
+            overflow:auto;
+        }
+
+        .playlist-item{
+            display:flex;
+            gap:12px;
+            align-items:center;
+            padding:12px;
+            border-radius:12px;
+            transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+            cursor:pointer;
+            background: transparent;
+            border: 1px solid transparent;
+        }
+
+        .playlist-item + .playlist-item{ margin-top:10px }
+
+        .playlist-item:hover{
+            transform: translateY(-6px);
+            box-shadow: 0 10px 30px rgba(124,92,255,0.12);
+            background: linear-gradient(90deg, rgba(124,92,255,0.06), rgba(43,212,247,0.02));
+            border-color: rgba(124,92,255,0.12);
+        }
+
+        .playlist-item.active{
+            background: linear-gradient(90deg, rgba(124,92,255,0.12), rgba(43,212,247,0.06));
+            box-shadow: 0 12px 40px rgba(43,212,247,0.06);
+            border-color: rgba(43,212,247,0.14);
+            transform: translateY(-8px);
+        }
+
+        .item-thumb{
+            width:56px;height:56px;border-radius:10px;
+            background: linear-gradient(135deg,var(--accent-1),var(--accent-2));
+            display:flex;align-items:center;justify-content:center;
+            font-weight:600;color:#081028;
+            flex:0 0 56px;
+            box-shadow: inset 0 -6px 18px rgba(0,0,0,0.15);
+        }
+
+        .item-meta{
+            flex:1;
+            min-width:0;
+        }
+
+        .item-title{
+            font-size:1rem;
+            color:#f6f9ff;
+            white-space:nowrap;
+            overflow:hidden;text-overflow:ellipsis;
+        }
+
+        .item-sub{
+            font-size:0.85rem;color:var(--muted);margin-top:4px;
+        }
+
+        .loading, .error{ padding:14px;border-radius:10px;text-align:center; margin-bottom:12px;}
+        .loading{ color:var(--accent-2); background: rgba(43,212,247,0.03); border:1px solid rgba(43,212,247,0.04)}
+        .error{ color:#ffb4b4; background: rgba(255,80,80,0.03); border:1px solid rgba(255,80,80,0.04)}
+
+        /* Bottom player (initially hidden) */
+        #playerBar {
+            position: fixed;
+            left: 16px;
+            right: 16px;
+            bottom: 16px;
+            border-radius:14px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+            border:1px solid rgba(255,255,255,0.04);
+            padding:12px 16px;
+            display:flex;
+            gap:12px;
+            align-items:center;
+            transform: translateY(120%);
+            transition: transform .45s cubic-bezier(.2,.9,.26,1), box-shadow .25s ease;
+            box-shadow: 0 20px 60px rgba(2,6,23,0.65);
+            z-index:50;
+            max-width:calc(100% - 32px);
+            backdrop-filter: blur(8px);
+        }
+
+        #playerBar.show{ transform: translateY(0); }
+
+        .player-info{
+            display:flex;
+            gap:12px;
+            align-items:center;
+            min-width:0;
+            /* give left area more room so progress (seek) bar can be wider */
+            flex: 1 1 65%;
+        }
+
+        .player-thumb{
+            width:64px;height:64px;border-radius:10px;
+            background: linear-gradient(135deg,var(--accent-1),var(--accent-2));
+            display:flex;align-items:center;justify-content:center;font-weight:700;color:#081028;
+            flex:0 0 64px;
+        }
+
+        .player-details{
+            min-width:0;
+            /* allow the details area (contains progress) to grow */
+            flex: 1 1 auto;
+            display:flex;
+            flex-direction:column;
+            gap:8px;
+        }
+
+        .player-title{ font-weight:700; font-size:1rem; color:#f7fbff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+        .player-sub{ color:var(--muted); font-size:0.85rem; margin-top:4px }
+
+        .player-controls{
+            display:flex;
+            gap:8px;
+            align-items:center;
+            justify-content:flex-end;
+            flex-direction:column;
+            /* reserve a fixed (but responsive) area on the right */
+            flex: 0 0 340px;
+            max-width:42%;
+        }
+
+        .controls-top{
+            display:flex;
+            gap:8px;
+            align-items:center;
+        }
+
+        .btn{
+            background: linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+            border:1px solid rgba(255,255,255,0.04);
+            color:#eaf3ff;
+            padding:10px;
+            border-radius:10px;
+            cursor:pointer;
+            transition: transform .12s ease, box-shadow .12s ease;
+            min-width:44px;
+            display:inline-flex;
+            align-items:center;justify-content:center;
+        }
+        .btn:hover{ transform:translateY(-4px); box-shadow: 0 10px 30px rgba(0,0,0,0.45) }
+
+        .play-btn{ width:54px; height:54px; font-size:18px; border-radius:12px; background: linear-gradient(90deg,var(--accent-1),var(--accent-2)); color:#041022; font-weight:700 }
+
+        .progress-wrap{
+            /* make the left seek/progress area expand */
+            width:100%;
+            margin-top:8px;
+            display:block;
+        }
+        .progress-bar{
+            height:8px;background:rgba(255,255,255,0.04); border-radius:999px; overflow:hidden; cursor:pointer;
+        }
+        .progress{ height:100%; width:0%; background: linear-gradient(90deg,var(--accent-1),var(--accent-2)); transition: width .08s linear; }
+
+        .time-row{ display:flex; justify-content:space-between; font-size:12px; color:var(--muted); margin-top:6px }
+
+        .seek-controls{ display:flex; gap:8px; align-items:center; margin-left:8px }
+        .seek-input{ width:160px; padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04); color:#eaf3ff; outline:none }
+        .seek-small{ padding:8px 10px; border-radius:8px; font-size:0.95rem }
+
+        /* Volume slider */
+        .volume-slider{
+            width:120px;
+            height:6px;
+            border-radius:999px;
+            background: rgba(255,255,255,0.03);
+            outline:none;
+            -webkit-appearance:none;
+            -moz-appearance:none;
+            appearance:none;
+        }
+        .volume-slider::-webkit-slider-thumb{
+            -webkit-appearance:none;
+            width:14px;height:14px;border-radius:50%; background:linear-gradient(90deg,var(--accent-1),var(--accent-2)); border:none; box-shadow:0 6px 18px rgba(0,0,0,0.4); cursor:pointer;
+        }
+        .volume-slider::-moz-range-thumb{
+            -moz-appearance:none;
+            appearance:none;
+            width:14px;height:14px;border-radius:50%; background:linear-gradient(90deg,var(--accent-1),var(--accent-2)); border:none; box-shadow:0 6px 18px rgba(0,0,0,0.4); cursor:pointer;
+        }
+
+        /* Responsive */
+        @media (max-width:720px){
+            .player-thumb{ width:52px;height:52px; flex:0 0 52px }
+            .player-info{ gap:8px }
+            .btn{ padding:8px; min-width:40px }
+            .volume-slider{ width:90px }
+            .seek-input{ width:120px } /* orta ekranlar için daha dar */
+            .player-controls{ flex: 0 0 240px; max-width:40%; } /* daralt controls */
+            .player-info{ flex: 1 1 60%; }
+            #playerBar{ left:12px; right:12px; bottom:12px; padding:10px }
+        }
+
+        @media (max-width:420px){
+            .player-controls{ flex-direction:row; align-items:center }
+            .player-details{ display:none } /* compact mode on tiny screens */
+            .player-controls{ flex: 0 0 auto; max-width:100%; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- decorative transparent background art -->
+<div class="bg-art" aria-hidden="true"></div>
+
+<!-- Fullscreen black&white splash shown on first load -->
+<div id="splash" role="status" aria-live="polite">
+    <div class="splash-inner">
+    </div>
+</div>
+
+<div class="app">
+    <header>
+        <h1>10 Kasım Müzik Listesi</h1>
+    </header>
+    
+    <div id="loadingMessage" class="loading">Şarkılar yükleniyor...</div>
+    <div id="errorMessage" class="error" style="display:none"></div>
+    
+    <div class="playlist-wrap" id="playlistWrap" aria-live="polite">
+        <div id="playlist" role="list"></div>
+    </div>
+</div>
+
+<!-- Bottom player appears when a track is selected -->
+<div id="playerBar" aria-hidden="true">
+    <div class="player-info">
+        <div class="player-thumb" id="playerThumb">♪</div>
+        <div class="player-details">
+            <div class="player-title" id="playerTitle">—</div>
+            <div class="player-sub" id="playerSub">Çalma listesi</div>
+
+            <div class="progress-wrap">
+                <div class="progress-bar" id="progressBar">
+                    <div class="progress" id="progress"></div>
+                </div>
+                <div class="time-row">
+                    <div id="currentTime">0:00</div>
+                    <div id="duration">0:00</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="player-controls" style="min-width:220px;">
+        <div class="controls-top">
+            <button class="btn" title="Geri 10s" onclick="stepSeconds(-10)">-10s</button>
+            <button class="btn" title="Geri 5s" onclick="stepSeconds(-5)">-5s</button>
+
+            <button class="btn" onclick="previousSong()">⏮</button>
+            <button class="play-btn" id="playBtn" onclick="togglePlay()">▶</button>
+            <button class="btn" onclick="nextSong()">⏭</button>
+
+            <button class="btn" title="İleri 5s" onclick="stepSeconds(5)">+5s</button>
+            <button class="btn" title="İleri 10s" onclick="stepSeconds(10)">+10s</button>
+        </div>
+
+        <div style="display:flex;align-items:center;margin-top:8px;gap:8px;">
+            <input id="seekSeconds" class="seek-input" type="number" min="0" step="1" placeholder="Saniye (örn. 45)"/>
+            <button class="btn seek-small" onclick="jumpToSeconds()">Git</button>
+
+            <input id="volumeSlider" class="volume-slider" type="range" min="0" max="100" value="70" aria-label="Ses"/>
+        </div>
+    </div>
+</div>
+
+<script>
+    // GitHub Pages friendly manifest location
+    const PLAYLIST_MANIFEST = 'music/playlist.json';
+   const splash = document.getElementById('splash');
+   const splashStartedAt = Date.now(); // kayıt: splash gösterilmeye başlandığı an
+
+   // gizleme: minimum süre (ms) için 3000 = 3s
+   const SPLASH_MIN_MS = 3000;
+   function hideSplash() {
+       if (!splash) return;
+       const elapsed = Date.now() - splashStartedAt;
+       const wait = Math.max(0, SPLASH_MIN_MS - elapsed);
+       // beklemesi bitince gizle ve ardından DOM'dan kaldır
+       setTimeout(()=> {
+           splash.classList.add('hidden');
+           setTimeout(()=> { if (splash && splash.parentNode) splash.parentNode.removeChild(splash); }, 600);
+       }, wait);
+    }
+
+    let audioPlayer = new Audio();
+    let playlist = [];
+    let currentSongIndex = -1;
+    let isPlaying = false;
+
+    const loadingMsg = document.getElementById('loadingMessage');
+    const errorMsg = document.getElementById('errorMessage');
+    const playlistDiv = document.getElementById('playlist');
+    const playerBar = document.getElementById('playerBar');
+
+    window.addEventListener('load', loadMusicFiles);
+
+    async function loadMusicFiles(){
+        try{
+            // keep splash visible until playlist rendered; show the small loading text too
+            loadingMsg.style.display = 'none';
+            const resp = await fetch(PLAYLIST_MANIFEST, { cache: 'no-cache' });
+            if(!resp.ok) throw new Error('Playlist manifesti bulunamadı: ' + PLAYLIST_MANIFEST);
+            const files = await resp.json();
+
+            if(!Array.isArray(files) || files.length === 0) throw new Error('Playlist boş. music/playlist.json içine MP3 dosya adlarını ekleyin.');
+
+            const validFiles = [];
+            for(const entry of files){
+                let fileName = null;
+                let displayName = null;
+
+                // manifest entry can be a string (filename) or an object { "file": "x.mp3", "title": "Görünen Ad" }
+                if(typeof entry === 'string'){
+                    fileName = entry;
+                    displayName = entry.replace(/\.[^/.]+$/, "");
+                } else if (entry && typeof entry === 'object'){
+                    // accept several keys for compatibility
+                    fileName = entry.file || entry.path || entry.src || entry.filename;
+                    displayName = entry.title || entry.name || null;
+                }
+
+                if(!fileName || typeof fileName !== 'string') continue;
+
+                // make a usable URL: allow absolute URLs or paths that already include "music/"
+                let filePath = fileName.trim();
+                if(!/^https?:\/\//i.test(filePath) && !filePath.startsWith('/')) {
+                    // if user provided only a filename, prepend music/
+                    if(!filePath.startsWith('music/')) filePath = `music/${filePath}`;
+                }
+
+                if(!displayName) displayName = fileName.replace(/^.*[\\/]/, '').replace(/\.[^/.]+$/, "");
+
+                try{
+                    const head = await fetch(filePath, { method: 'HEAD' });
+                    if(head.ok){
+                        validFiles.push({ url: filePath, name: displayName, file: fileName });
+                    } else {
+                        console.warn('Dosya bulunamadı (HEAD):', filePath);
+                    }
+                }catch(e){
+                    // bazı sunucular HEAD'a izin vermez; yine de ekleyelim
+                    console.warn('HEAD isteği hata, ekleniyor:', filePath);
+                    validFiles.push({ url: filePath, name: displayName, file: fileName });
+                }
+            }
+
+            if(validFiles.length === 0) throw new Error('Hiç şarkı dosyası doğrulanamadı. "music" klasörüne MP3 dosyaları ekleyin ve music/playlist.json dosyasını güncelleyin.');
+
+            playlist = validFiles;
+            renderPlaylist();
+            // hide splash after playlist rendered so user sees transition to UI
+            hideSplash();
+        }catch(err){
+            loadingMsg.style.display = 'none';
+            errorMsg.style.display = 'block';
+            errorMsg.textContent = err.message || String(err);
+            // still hide splash so errors are visible
+            hideSplash();
+        }
+    }
+
+    function renderPlaylist(){
+        playlistDiv.innerHTML = '';
+        playlist.forEach((song, idx) => {
+            const it = document.createElement('div');
+            it.className = 'playlist-item';
+            it.setAttribute('role','button');
+            it.innerHTML = `
+                <div class="item-thumb">${String(idx+1)}</div>
+                <div class="item-meta">
+                    <div class="item-title">${escapeHtml(song.name)}</div>
+                    <div class="item-sub">${song.file}</div>
+                </div>
+            `;
+            it.onclick = () => selectSong(idx);
+            playlistDiv.appendChild(it);
+        });
+    }
+
+    function selectSong(index){
+        currentSongIndex = index;
+        loadSong(index);
+        // show bottom player with transition
+        playerBar.classList.add('show');
+        playerBar.setAttribute('aria-hidden','false');
+        // highlight active
+        document.querySelectorAll('.playlist-item').forEach((el,i)=>{
+            el.classList.toggle('active', i === index);
+        });
+        // scroll player into view on small screens
+        if(window.innerWidth < 720) playerBar.scrollIntoView({behavior:'smooth', block:'end'});
+    }
+
+    function loadSong(index){
+        const song = playlist[index];
+        if(!song) return;
+        audioPlayer.src = song.url;
+        audioPlayer.currentTime = 0;
+        document.getElementById('playerTitle').textContent = song.name;
+        document.getElementById('playerSub').textContent = song.file;
+        document.getElementById('playerThumb').textContent = song.name.charAt(0).toUpperCase() || '♪';
+        updatePlayButton(false);
+        // auto-play
+        setTimeout(()=> { // small delay to allow metadata load
+            audioPlayer.play().then(()=> { isPlaying = true; updatePlayButton(true) }).catch(()=>{});
+        }, 120);
+    }
+
+    function togglePlay(){
+        if(audioPlayer.paused){
+            audioPlayer.play();
+            isPlaying = true;
+            updatePlayButton(true);
+        } else {
+            audioPlayer.pause();
+            isPlaying = false;
+            updatePlayButton(false);
+        }
+    }
+
+    function updatePlayButton(playing){
+        const b = document.getElementById('playBtn');
+        b.textContent = playing ? '⏸' : '▶';
+    }
+
+    function previousSong(){
+        if(playlist.length === 0) return;
+        currentSongIndex = (currentSongIndex - 1 + playlist.length) % playlist.length;
+        selectSong(currentSongIndex);
+    }
+    function nextSong(){
+        if(playlist.length === 0) return;
+        currentSongIndex = (currentSongIndex + 1) % playlist.length;
+        selectSong(currentSongIndex);
+    }
+
+    // step relative seconds (positive or negative)
+    function stepSeconds(sec){
+        if(!audioPlayer.duration) return;
+        let t = audioPlayer.currentTime + sec;
+        t = Math.max(0, Math.min(audioPlayer.duration, t));
+        audioPlayer.currentTime = t;
+    }
+
+    // jump to absolute seconds from input
+    function jumpToSeconds(){
+        const v = parseFloat(document.getElementById('seekSeconds').value);
+        if(isNaN(v) || v < 0) return;
+        const t = Math.min(v, audioPlayer.duration || v);
+        audioPlayer.currentTime = t;
+    }
+
+    // progress / time updates
+    audioPlayer.addEventListener('timeupdate', ()=> {
+        const p = (audioPlayer.currentTime / (audioPlayer.duration || 1)) * 100 || 0;
+        document.getElementById('progress').style.width = p + '%';
+        document.getElementById('currentTime').textContent = formatTime(audioPlayer.currentTime);
+    });
+
+    audioPlayer.addEventListener('loadedmetadata', ()=> {
+        document.getElementById('duration').textContent = formatTime(audioPlayer.duration);
+    });
+
+    audioPlayer.addEventListener('ended', ()=> {
+        updatePlayButton(false);
+        nextSong();
+    });
+
+    // click to seek on progress bar
+    document.getElementById('progressBar').addEventListener('click', function(e){
+        const rect = this.getBoundingClientRect();
+        const percent = (e.clientX - rect.left) / rect.width;
+        audioPlayer.currentTime = percent * (audioPlayer.duration || 0);
+    });
+
+    // volume
+    const volumeSlider = document.getElementById('volumeSlider');
+    volumeSlider.addEventListener('input', (e)=> {
+        audioPlayer.volume = e.target.value / 100;
+    });
+    audioPlayer.volume = volumeSlider.value / 100;
+
+    // utilities
+    function formatTime(sec){
+        if(!sec || isNaN(sec)) return '0:00';
+        const m = Math.floor(sec/60);
+        const s = Math.floor(sec%60);
+        return m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    function escapeHtml(s){
+        return String(s)
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // Allow keyboard control for accessibility
+    window.addEventListener('keydown', (e)=>{
+        if(!playerBar.classList.contains('show')) return;
+        if(e.code === 'Space'){ e.preventDefault(); togglePlay(); }
+        if(e.code === 'ArrowRight'){ stepSeconds(5); }
+        if(e.code === 'ArrowLeft'){ stepSeconds(-5); }
+    });
+</script>
+</body>
+</html>
